@@ -100,7 +100,11 @@ type IPSet interface {
 // The type may require type specific options. If the Exist
 // option is specified, ipset ignores the error when the same set
 // (setname and create parameters are identical) already exists.
-func New(name string, setType SetType, options ...Option) (IPSet, error) {
+func New(name string, setType SetType, options ...Option) (s IPSet, err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(s, "new")
+		defer func() { cleanup(err) }()
+	}
 	c := getCmd(_create, name, setType, string(setType))
 	defer putCmd(c)
 	if err := c.exec(options...); err != nil {
@@ -123,7 +127,11 @@ func Flush(names ...string) error {
 }
 
 // flush flushes specific set
-func flush(name string) error {
+func flush(name string) (err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(nil, "flush")
+		defer func() { cleanup(err) }()
+	}
 	if out, err := execCommand(ipsetPath, _flush, name).
 		CombinedOutput(); err != nil {
 		return fmt.Errorf("ipset: can't flush set %s: %s", name, out)
@@ -132,7 +140,11 @@ func flush(name string) error {
 }
 
 // flushAll flushes all set
-func flushAll() error {
+func flushAll() (err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(nil, "flush-all")
+		defer func() { cleanup(err) }()
+	}
 	if out, err := execCommand(ipsetPath, _flush).
 		CombinedOutput(); err != nil {
 		return fmt.Errorf("ipset: can't flush all set: %s", out)
@@ -154,7 +166,11 @@ func Destroy(names ...string) error {
 }
 
 // destroy removes specific set
-func destroy(name string) error {
+func destroy(name string) (err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(nil, "destroy")
+		defer func() { cleanup(err) }()
+	}
 	if out, err := execCommand(ipsetPath, _destroy, name).
 		CombinedOutput(); err != nil {
 		return fmt.Errorf("ipset: can't destroy set %s: %s", name, out)
@@ -163,7 +179,11 @@ func destroy(name string) error {
 }
 
 // destroyAll removes all set
-func destroyAll() error {
+func destroyAll() (err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(nil, "destroy-all")
+		defer func() { cleanup(err) }()
+	}
 	if out, err := execCommand(ipsetPath, _destroy).
 		CombinedOutput(); err != nil {
 		return fmt.Errorf("ipset: can't destroy all set: %s", out)
@@ -174,7 +194,11 @@ func destroyAll() error {
 // Swap swaps the content of two sets, or in another words,
 // exchange the action of two sets. The referred sets must
 // exist and compatible type of sets can be swapped only.
-func Swap(from, to string) error {
+func Swap(from, to string) (err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(nil, "swap")
+		defer func() { cleanup(err) }()
+	}
 	if out, err := execCommand(ipsetPath, _swap, from, to).
 		CombinedOutput(); err != nil {
 		return fmt.Errorf("ipset: can't swap from %s to %s: %s", from, to, out)
@@ -184,7 +208,11 @@ func Swap(from, to string) error {
 
 //Check checks whether there is an ipset command in the system.
 // If so, check if the version is legal.
-func Check() error {
+func Check() (err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(nil, "check")
+		defer func() { cleanup(err) }()
+	}
 	if ipsetPath != "" {
 		return nil
 	}

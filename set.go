@@ -32,14 +32,18 @@ type Info struct {
 	Entries      []string
 }
 
-func (s set) List(options ...Option) (*Info, error) {
+func (s set) List(options ...Option) (info *Info, err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(s, "list-entries")
+		defer func() { cleanup(err) }()
+	}
 	c := getCmd(_list, s.name, s.setType)
 	defer putCmd(c)
-	if err := c.exec(options...); err != nil {
+	if err = c.exec(options...); err != nil {
 		return nil, err
 	}
 
-	info, err := parseInfo(c.out)
+	info, err = parseInfo(c.out)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +114,11 @@ func (s set) Del(entry string, options ...Option) error {
 
 var notFlag = []byte("NOT")
 
-func (s set) Test(entry string) (bool, error) {
+func (s set) Test(entry string) (ok bool, err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(s, "test")
+		defer func() { cleanup(err) }()
+	}
 	out, err := execCommand(ipsetPath, _test, s.name, entry).
 		CombinedOutput()
 
@@ -124,25 +132,42 @@ func (s set) Test(entry string) (bool, error) {
 	return true, nil
 }
 
-func (s set) Flush() error {
+func (s set) Flush() (err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(s, "flush")
+		defer func() { cleanup(err) }()
+	}
 	return flush(s.name)
 }
 
-func (s set) Destroy() error {
+func (s set) Destroy() (err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(s, "destroy")
+		defer func() { cleanup(err) }()
+	}
 	return destroy(s.name)
 }
 
-func (s set) do(action, entry string, options ...Option) error {
+func (s set) do(action, entry string, options ...Option) (err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(s, action)
+		defer func() { cleanup(err) }()
+	}
 	c := getCmd(action, s.name, s.setType, entry)
 	defer putCmd(c)
 
-	if err := c.exec(options...); err != nil {
-		return err
-	}
-	return nil
+	return c.exec(options...)
+	// if err = c.exec(options...); err != nil {
+	// 	return err
+	// }
+	// return nil
 }
 
-func (s set) Save(options ...Option) (io.Reader, error) {
+func (s set) Save(options ...Option) (r io.Reader, err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(s, "save")
+		defer func() { cleanup(err) }()
+	}
 	c := getCmd(_save, s.name, s.setType)
 	defer putCmd(c)
 	if err := c.exec(options...); err != nil {
@@ -156,10 +181,14 @@ func (s set) SaveToFile(filename string, options ...Option) error {
 	return s.doToFile(_save, filename, options...)
 }
 
-func (s set) doToFile(action, filename string, options ...Option) error {
+func (s set) doToFile(action, filename string, options ...Option) (err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(s, action)
+		defer func() { cleanup(err) }()
+	}
 	c := getCmd(action, s.name, s.setType)
 	defer putCmd(c)
-	if err := c.exec(options...); err != nil {
+	if err = c.exec(options...); err != nil {
 		return err
 	}
 
@@ -169,6 +198,10 @@ func (s set) doToFile(action, filename string, options ...Option) error {
 var maxRestoreSize = 1 << 16
 
 func (s set) Restore(r io.Reader, exist ...bool) (err error) {
+	if GlobalHook != nil {
+		cleanup := GlobalHook(s, "restore")
+		defer func() { cleanup(err) }()
+	}
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("ipset: can't restore to %s(%s): %s", s.name, s.setType, err)
